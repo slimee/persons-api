@@ -15,11 +15,12 @@ const search = (filter, pageNumber, pageSize) => properties
 router.get('/', async (req, res) => {
     const pageSize = req.query.ps ? Number(req.query.ps) : globalPageSize
     const pageNumber = req.query.pn ? Number(req.query.pn) : 0
+    const filter = { type: { $ne: 'Enfant' } }
 
     if (req.query.n) {
       const text = req.query.n
-      const textFilter = { $text: { $search: text } }
-      const regexFilter = { title: { $regex: new RegExp(`${text}.*`, 'gi') } }
+      const textFilter = { ...filter, $text: { $search: text } }
+      const regexFilter = { ...filter, title: { $regex: new RegExp(`${text}.*`, 'gi') } }
 
       let results = await search(textFilter, pageNumber, pageSize)
       if (results.length === 0) {
