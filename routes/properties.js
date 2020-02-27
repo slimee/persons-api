@@ -4,22 +4,29 @@ var { col, objectId } = require('../db')
 var properties = col(process.env.PROPERTIES_COLLECTION_NAME)
 var debug = require('debug')('api:properties')
 
-router.get('/', (req, res) => {
+const globalPageSize = Number(process.env.PAGE_SIZE)
+
+const search = (filter, pageNumber, pageSize) => properties
+  .find(filter)
+  .skip(pageNumber * pageSize)
+  .limit(pageSize)
+  .toArray()
+
+router.get('/', async (req, res) => {
     const pageSize = req.query.ps ? Number(req.query.ps) : globalPageSize
     const pageNumber = req.query.pn ? Number(req.query.pn) : 0
-    const filter = {}
 
     if (req.query.n) {
       const text = req.query.n
-      filter.$text = { $search: text }
-    }
+      const textFilter = { $text: { $search: text } }
+      const regexFilter = { title: { $regex: new RegExp(`${text}.*`, 'gi') } }
 
-    properties
-      .find(filter)
-      .skip(pageNumber * pageSize)
-      .limit(pageSize)
-      .toArray()
-      .then((properties) => res.send(properties))
+      let results = await search(textFilter, pageNumber, pageSize)
+      if (results.length === 0) {
+        results = await search(regexFilter, pageNumber, pageSize)
+      }
+      res.send(results)
+    }
   },
 )
 
