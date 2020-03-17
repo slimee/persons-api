@@ -12,7 +12,7 @@ const getFilter = req => {
 
   if (req.query.n) {
     const text = req.query.n
-    filter.$text = { $search: text }
+    filter.$text = { $search: `\"${text}\"` }
   }
 
   const birthBefore = req.query.bb && new Date(req.query.bb)
