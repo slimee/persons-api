@@ -7,20 +7,32 @@ var debug = require('debug')('api:persons')
 const globalPageSize = Number(process.env.PAGE_SIZE)
 const projection = { name: 1, birth: 1, death: 1 }
 
+const getDateFilter = (term) => {
+  const [, symbol, year] = term.split(':')
+  const date = new Date(year)
+  const dateNext = new Date((Number(year) + 1) + '')
+  switch (symbol) {
+    case '=':
+      return { $gt: date, $lt: dateNext }
+    case '<':
+      return { $lt: dateNext }
+    case '>':
+      return { $gt: date }
+  }
+}
+
 const getFilter = req => {
   const filter = {}
 
   if (req.query.n) {
-    const text = req.query.n
-    filter.$text = { $search: `\"${text}\"` }
-  }
-
-  const birthBefore = req.query.bb && new Date(req.query.bb)
-  const birthAfter = req.query.ba && new Date(req.query.ba)
-  if (birthAfter || birthBefore) {
-    filter.birth = {}
-    birthAfter && (filter.birth.$gt = birthAfter)
-    birthBefore && (filter.birth.$lt = birthBefore)
+    if (req.query.n.startsWith('born:') || req.query.n.startsWith('ne:') || req.query.n.startsWith('né:')) {
+      filter.birth = getDateFilter(req.query.n)
+    } else if (req.query.n.startsWith('death:') || req.query.n.startsWith('mort:') || req.query.n.startsWith('morte:')) {
+      filter.death = getDateFilter(req.query.n)
+    } else {
+      const text = req.query.n
+      filter.$text = { $search: `\"${text}\"` }
+    }
   }
 
   if (req.query.pid) {
@@ -32,7 +44,7 @@ const getFilter = req => {
 router.get('/count', (req, res) => {
   const filter = getFilter(req)
   persons.countDocuments(filter)
-    .then((count) => res.send({count}))
+    .then((count) => res.send({ count }))
     .catch(debug)
 })
 
