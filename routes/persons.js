@@ -7,8 +7,7 @@ var debug = require('debug')('api:persons')
 const globalPageSize = Number(process.env.PAGE_SIZE)
 const projection = { name: 1, birth: 1, death: 1 }
 
-const getDateFilter = (term) => {
-  const [, symbol, year] = term.split(':')
+const getDateFilter = (symbol, year) => {
   const date = new Date(year)
   const dateNext = new Date((Number(year) + 1) + '')
   switch (symbol) {
@@ -25,10 +24,12 @@ const getFilter = req => {
   const filter = {}
 
   if (req.query.n) {
-    if (req.query.n.startsWith('born:') || req.query.n.startsWith('ne:') || req.query.n.startsWith('né:')) {
-      filter.birth = getDateFilter(req.query.n)
-    } else if (req.query.n.startsWith('death:') || req.query.n.startsWith('mort:') || req.query.n.startsWith('morte:')) {
-      filter.death = getDateFilter(req.query.n)
+    if (req.query.n.match(/(morte?)([<>=])(\d+)/i)) {
+      const [, , symbol, year] = req.query.n.match(/(morte?)([<>=])(\d+)/i)
+      filter.death = getDateFilter(symbol, year)
+    } else if (req.query.n.match(/(nee?)([<>=])(\d+)/i)) {
+      const [, , symbol, year] = req.query.n.match(/(nee?)([<>=])(\d+)/i)
+      filter.birth = getDateFilter(symbol, year)
     } else {
       const text = req.query.n
       filter.$text = { $search: `\"${text}\"` }
@@ -42,8 +43,8 @@ const getFilter = req => {
 }
 
 router.get('/count', (req, res) => {
-  const filter = getFilter(req)
-  persons.countDocuments(filter)
+  persons
+    .countDocuments(getFilter(req))
     .then((count) => res.send({ count }))
     .catch(debug)
 })
